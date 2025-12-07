@@ -5,9 +5,9 @@
 
 bool UserModel::insert(User &user)
 {
-    // 组装sql语句
+    // 组装sql语句, mysql 是大小写敏感的
     char sql[1024] = {0};
-    sprintf(sql, "insert into user(name, password, state) values('%s', '%s', '%s')",
+    sprintf(sql, "insert into User(name, password, state) values('%s', '%s', '%s')",
             user.getName().c_str(), user.getPassword().c_str(), user.getState().c_str());
     MySQL mysql;
     if(mysql.connect()){
@@ -25,7 +25,7 @@ User UserModel::query(int id)
 {
     // 组装sql语句
     char sql[1024] = {0};
-    sprintf(sql, "select * from user where id = %d", id);
+    sprintf(sql, "select * from User where id = %d", id);
     MySQL mysql;
     if(mysql.connect()){
         MYSQL_RES *res = mysql.query(sql);
@@ -46,7 +46,7 @@ bool UserModel::updateState(User &user)
 {
     // 组装sql语句
     char sql[1024] = {0};
-    sprintf(sql, "update user set state = '%s' where id = %d",
+    sprintf(sql, "update User set state = '%s' where id = %d",
             user.getState().c_str(), user.getId());
     MySQL mysql;
     if(mysql.connect()){
@@ -57,4 +57,16 @@ bool UserModel::updateState(User &user)
     }
 
     return false;
+}
+
+
+void UserModel::resetState()
+{
+    // 组装sql语句
+    char sql[1024] = {0};
+    sprintf(sql, "update User set state = 'offline' where state = 'online'");
+    MySQL mysql;
+    if(mysql.connect()){
+        mysql.update(sql);
+    }
 }
