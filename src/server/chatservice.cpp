@@ -24,6 +24,12 @@ ChatService::ChatService()
     _msghandlerMap.insert({(int)MsgId::REG_MSG, std::bind(&ChatService::reg, this, _1, _2, _3)});
     _msghandlerMap.insert({(int)MsgId::ONE_CHAT_MSG, std::bind(&ChatService::oneChat, this, _1, _2, _3)});
     _msghandlerMap.insert({(int)MsgId::ADD_FRIEND_MSG, std::bind(&ChatService::addFriend, this, _1, _2, _3)});
+    _msghandlerMap.insert({(int)MsgId::LOG_OUT_MSG, std::bind(&ChatService::logout, this, _1, _2, _3)});
+
+    // 群组业务
+    _msghandlerMap.insert({(int)MsgId::CREATE_GROUP_MSG, std::bind(&ChatService::createGroup, this, _1, _2, _3)});
+    _msghandlerMap.insert({(int)MsgId::ADD_GROUP_MSG, std::bind(&ChatService::addGroup, this, _1, _2, _3)});
+    _msghandlerMap.insert({(int)MsgId::GROUP_CHAT_MSG, std::bind(&ChatService::groupChat, this, _1, _2, _3)});
 }
 
 
@@ -46,7 +52,7 @@ void ChatService::login(const TcpConnectionPtr &conn, json &js, Timestamp time)
             json response;
             response["msgid"] = MsgId::LOGIN_MSG_ACK;
             response["errno"] = 2; // 已经登录的错误
-            response["errmsg"] = "该用户已经登录, 请勿重复登录!";
+            response["errmsg"] = "this account is using , input another one!";
             conn->send(response.dump());
         }
         else{
@@ -87,6 +93,32 @@ void ChatService::login(const TcpConnectionPtr &conn, json &js, Timestamp time)
                  response["friends"] = friendVec;
             }
 
+            // 查询群组列表
+            vector<Group> groupVec = _groupModel.queryGroups(id);
+            if(!groupVec.empty()){
+                vector<string> groupjsonVec;
+                for(Group &group : groupVec){
+                    json grpjson;
+                    grpjson["id"] = group.getId();
+                    grpjson["groupname"] = group.getName();
+                    grpjson["groupdesc"] = group.getDesc();
+                    // 群成员
+                    vector<string> userjsonVec;
+                    for(GroupUser &user : group.getUsers()){
+                        json userjson;
+                        userjson["id"] = user.getId();
+                        userjson["name"] = user.getName();
+                        userjson["state"] = user.getState();
+                        userjson["grouprole"] = user.getRole();
+                        userjsonVec.push_back(userjson.dump());
+                    }
+                    grpjson["users"] = userjsonVec;
+                    groupjsonVec.push_back(grpjson.dump());
+                }
+                response["groups"] = groupjsonVec;
+            }
+
+
             conn->send(response.dump());
         }
     }
@@ -95,7 +127,7 @@ void ChatService::login(const TcpConnectionPtr &conn, json &js, Timestamp time)
         json response;
         response["msgid"] = MsgId::LOGIN_MSG_ACK;
         response["errno"] = 1;  // 用户名或者密码错误
-        response["errmsg"] = "用户名或密码错误!";
+        response["errmsg"] = "id or password is invalid !";
         conn->send(response.dump());
     }
 }
@@ -227,4 +259,21 @@ void ChatService::groupChat(const TcpConnectionPtr &conn, json &js, Timestamp ti
         }
     }
 
+}
+
+void ChatService::logout(const TcpConnectionPtr &conn, json &js, Timestamp time)
+{
+    int userid = js["id"].get<int>();
+
+    // 更新用户的状态信息
+    {
+        lock_guard<mutex> lock(_connMutex);
+        auto it = _userConnMap.find(userid);
+        if(it != _userConnMap.end()){
+            _userConnMap.erase(it);
+        }
+    }
+    
+    User user(userid, "", "", "offline");
+    _userModel.updateState(user);
 }

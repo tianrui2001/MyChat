@@ -1,60 +1,57 @@
-#include "db.h"
-#include <muduo/base/Logging.h>
 #include <string>
+#include <muduo/base/Logging.h>
+
+#include "db.hpp"
+#include "connectionpool.hpp" // 引入连接池
+
 
 using namespace std;
 
-static string server = "127.0.0.1";
-static string user = "root";
-static string password = "123456";
-static string dbname = "chat";
-
-// 初始化连接
+// 构造函数：向连接池申请连接
 MySQL::MySQL()
 {
-    _conn = mysql_init(nullptr);    // 分配一些空间
+    // 核心：直接从单例连接池里拿
+    _conn = ConnectionPool::getInstance()->getConnection();
 }
 
-// 释放连接
+// 析构函数：将连接归还给连接池
 MySQL::~MySQL()
 {
-    if(_conn != nullptr)
+    if (_conn != nullptr)
     {
-        mysql_close(_conn);
+        // 核心：用完不销毁，而是还回去
+        ConnectionPool::getInstance()->releaseConnection(_conn);
     }
 }
 
-// 连接数据库
+// 现在 connect 不需要建立 TCP 了，只需要判断是否拿到连接即可
 bool MySQL::connect()
 {
-    MYSQL *p = mysql_real_connect(_conn, server.c_str(),
-                                   user.c_str(), password.c_str(),
-                                   dbname.c_str(), 3306, nullptr, 0);
-    if(p != nullptr){
-         mysql_query(_conn, "set names gbk"); // 设置字符集， C/C++ 默认是 ASCII,不设置中文会显示？
-         LOG_INFO << "MySQL Connect Success!";
-    }else{
-        LOG_INFO << "MySQL Connect Fail!";
+    if (_conn == nullptr)
+    {
+        LOG_INFO << "ConnectionPool empty, get connection failed!";
+        return false;
     }
-    return p != nullptr;
+    return true;
 }
 
 // 更新操作
 bool MySQL::update(string sql)
 {
-    if(mysql_query(_conn, sql.c_str())){
-        LOG_INFO << __FILE__ << " : " << __LINE__ << " : " << sql << "更新失败！";
+    if (mysql_query(_conn, sql.c_str()))
+    {
+        LOG_INFO << __FILE__ << ":" << __LINE__ << ":" << sql << " 更新失败! " << mysql_error(_conn);
         return false;
     }
-
     return true;
 }
 
 // 查询操作
 MYSQL_RES* MySQL::query(string sql)
 {
-    if(mysql_query(_conn, sql.c_str())){
-        LOG_INFO << __FILE__ << " : " << __LINE__ << " : " << sql << "查询失败！";
+    if (mysql_query(_conn, sql.c_str()))
+    {
+        LOG_INFO << __FILE__ << ":" << __LINE__ << ":" << sql << " 查询失败! " << mysql_error(_conn);
         return nullptr;
     }
     return mysql_use_result(_conn);

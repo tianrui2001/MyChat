@@ -1,5 +1,5 @@
 #include "groupmodel.hpp"
-#include "db.h"
+#include "db.hpp"
 
 #include <string>
 
@@ -8,7 +8,7 @@ using namespace std;
 bool GroupModel::createGroup(Group &group)
 {
     char sql[1024] = {0};
-    sprintf(sql, "insert into AllGroup(groupname, description) values('%s', '%s')",
+    sprintf(sql, "insert into AllGroup(groupname, groupdesc) values('%s', '%s')",
             group.getName().c_str(), group.getDesc().c_str());
     
     MySQL mysql;
@@ -36,7 +36,7 @@ void GroupModel::addGroup(int userid, int groupid, string role)
 vector<Group> GroupModel::queryGroups(int userid)
 {
     char sql[1024] = {0};
-    sprintf(sql, "select a.id, a.groupname, a.description from AllGroup a inner join \
+    sprintf(sql, "select a.id, a.groupname, a.groupdesc from AllGroup a inner join \
         GroupUser b on a.id = b.groupid where b.userid = %d", userid);
 
     vector<Group> groupVec;

@@ -7,6 +7,8 @@ enum class MsgId
     REG_MSG,
     ONE_CHAT_MSG,
     ADD_FRIEND_MSG,
+    LOG_OUT_MSG,
+
     LOGIN_MSG_ACK,
     REG_MSG_ACK, 
 

@@ -1,7 +1,7 @@
 #include "friendmodel.hpp"
 
 #include <vector>
-#include "db.h"
+#include "db.hpp"
 
 void FriendModel::insert(int userid, int friendid)
 {

@@ -1,5 +1,5 @@
 #include "offlinemodel.hpp"
-#include "db.h"
+#include "db.hpp"
 
 #include <iostream>
 #include <vector>
@@ -12,7 +12,7 @@ void OfflineMsgModel::insert(int userid, const string &msg)
             userid, msg.c_str());
     MySQL mysql;
     if(mysql.connect()){
-        if(mysql.update(sql));
+        mysql.update(sql);
     }
 }
 

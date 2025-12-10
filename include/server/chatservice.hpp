@@ -56,6 +56,9 @@ public:
     // 处理群组聊天业务
     void groupChat(const TcpConnectionPtr &conn, json &js, Timestamp time);
 
+    // 处理注销业务
+    void logout(const TcpConnectionPtr &conn, json &js, Timestamp time);
+
 private:
     ChatService(); // 单例模式
 
