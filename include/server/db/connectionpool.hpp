@@ -10,13 +10,6 @@
 
 using namespace std;
 
-static string server = "127.0.0.1";
-static string user = "root";
-static string password = "123456";
-static string dbname = "chat";
-static int initSize = 10;
-static int maxSize = 15;
-
 // 数据库连接池（单例模式）
 class ConnectionPool {
 public:

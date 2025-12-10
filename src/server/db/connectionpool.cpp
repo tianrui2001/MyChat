@@ -2,6 +2,14 @@
 #include <iostream>
 #include <mysql/mysql.h>
 
+static string server = "127.0.0.1";
+static string user = "root";
+static string password = "123456";
+static string dbname = "chat";
+static int initSize = 10;
+static int maxSize = 15;
+
+
 ConnectionPool* ConnectionPool::getInstance() {
     static ConnectionPool pool;
     return &pool;
