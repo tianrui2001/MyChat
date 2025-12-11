@@ -11,6 +11,9 @@ using namespace std::placeholders;
 using namespace muduo;
 using namespace std;
 
+// 定义超时时间（秒），客户端建议 10s 发一次，这里设为 30s
+const double kTimeoutSeconds = 400.0; 
+
 ChatService* ChatService::instance()
 {
     static ChatService service;
@@ -313,4 +316,65 @@ void ChatService::handleRedisSubscribeMessage(int userid, string message)
     }
 
     _offlineMsgModel.insert(userid, message);
+}
+
+
+// void ChatService::handleHeartbeat(json &js, Timestamp time)
+// {
+            
+//     // 检查是否是心跳消息, 格式约定: {"msgid": HEARTBEAT_MSG, "userid": 123}
+//     if (js.contains("msgid") && js["msgid"].get<int>() == (int)MsgId::HEARTBEAT_MSG) 
+//     {
+//         if (js.contains("userid")) 
+//         {
+//             int userid = js["userid"].get<int>();
+            
+//             // 4. 更新对应 TCP 连接的活跃时间, 要注意线程安全
+//             {
+//                 lock_guard<mutex> lock(_connMutex);
+//                 auto it =_userConnMap.find(userid);
+//                 if (it != _userConnMap.end()) 
+//                 {
+//                     // ===> 给 TCP 连接续命 <===
+//                     it->second->setContext(Timestamp::now());
+                    
+//                     // 打印日志调试
+//                     LOG_INFO << "Received Heartbeat form user " << userid << " via UDP";
+//                 }
+//             }
+//         }
+//     }
+// }
+
+
+void ChatService::checkClientStatus(Timestamp time)
+{
+    // 加锁遍历所有在线用户
+    lock_guard<mutex> lock(_connMutex);
+
+    for (auto it = _userConnMap.begin(); it != _userConnMap.end(); )
+    {
+        TcpConnectionPtr conn = it->second;
+
+        // 检查连接是否包含时间戳
+        if (!conn->getContext().empty())
+        {
+            // 取出最后活跃时间
+            Timestamp lastTime = boost::any_cast<Timestamp>(conn->getContext());
+            
+            // 计算时间差
+            double age = timeDifference(time, lastTime);
+
+            if (age > kTimeoutSeconds)
+            {
+                LOG_INFO << "Heartbeat Timeout! Kick User ID: " << it->first << ", Age: " << age << "s";
+                
+                // 超时踢人！
+                // 调用 shutdown 会触发 TCP 的 FIN 包
+                // 最终会触发 onConnection -> clientCloseException，完成清理工作
+                conn->shutdown(); 
+            }
+        }
+        ++it;
+    }
 }

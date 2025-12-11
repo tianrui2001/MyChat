@@ -15,4 +15,5 @@ enum class MsgId
     CREATE_GROUP_MSG,
     ADD_GROUP_MSG,
     GROUP_CHAT_MSG,
+    HEARTBEAT_MSG,
 };

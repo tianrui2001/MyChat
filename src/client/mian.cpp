@@ -30,6 +30,7 @@ vector<User> g_currentUserFriendList;
 vector<Group> g_currentGroupList;
 bool isMainMenuRunning = false;
 
+// void logProc(int clientfd, string ip, int port);
 void logProc(int clientfd);
 void regProc(int clientfd);
 void showCurrentUserData();
@@ -38,6 +39,8 @@ void mainMenu(int clientfd);
 string getCurrentTime();
 void doLoginResponse(json &response);
 void doRegResponse(json &response);
+// void heartbeatTask(string serverIp, int port);
+void heartbeatTask(int clientfd);
 
 void help(int clientfd, string);
 void chat(int clientfd, string);
@@ -118,6 +121,7 @@ int main(int argc, char **argv){
         switch (choice)
         {
         case 1:
+            // logProc(clientfd, string(ip), port);
             logProc(clientfd);
             break;
 
@@ -162,6 +166,7 @@ void regProc(int clientfd)
      sem_wait(&rwsem); // 等待子线程处理注册响应
 }
 
+// void logProc(int clientfd, string ip, int port)
 void logProc(int clientfd)
 {
     int id = 0;
@@ -188,6 +193,15 @@ void logProc(int clientfd)
     sem_wait(&rwsem); // 等待子线程处理登录响应
 
     if(g_isLoginSuccess){
+        // 启动心跳线程
+        // std::thread heartbeat(heartbeatTask, string(ip), port);
+        // heartbeat.detach(); // 分离线程，让它在后台一直跑
+        
+        // 登录成功后
+        std::thread t(heartbeatTask, clientfd); // 传入 tcp socket fd
+        t.detach();
+
+
         // 进入聊天主菜单页面
         isMainMenuRunning = true;
         mainMenu(clientfd);
@@ -525,5 +539,74 @@ void logout(int clientfd, string)
     }else{
         isMainMenuRunning = false;
         cout << "you have logged out!" << endl;
+    }
+}
+
+
+// // 心跳发送线程函数
+// // 参数：serverIp - 服务器IP地址， port - 服务器端口（与TCP一致，如8000）
+// void heartbeatTask(string serverIp, int port)
+// {
+//     // 1. 创建 UDP Socket， 不需要绑定 bind，因为客户端端口可以随机
+//     int udpfd = socket(AF_INET, SOCK_DGRAM, 0);
+//     if (udpfd < 0) {
+//         perror("udp socket error");
+//         return;
+//     }
+
+//     // 2. 填写服务器地址信息
+//     struct sockaddr_in serverAddr;
+//     memset(&serverAddr, 0, sizeof(serverAddr));
+//     serverAddr.sin_family = AF_INET;
+//     serverAddr.sin_port = htons(port); // 端口必须与服务器 TCP 端口一致 (如 8000)
+//     serverAddr.sin_addr.s_addr = inet_addr(serverIp.c_str());
+
+//     while(true)
+//     {
+//         // 3. 休眠：必须小于服务器的超时时间
+//         this_thread::sleep_for(chrono::seconds(10));
+
+//         // 4. 组装心跳包：{"msgid": HEARTBEAT_MSG, "userid": 123}
+//         json js;
+//         js["msgid"] = MsgId::HEARTBEAT_MSG; 
+//         js["userid"] = g_currentUser.getId(); 
+        
+//         string msg = js.dump();
+
+//         // 5. 发送 UDP 包
+//         int ret = sendto(udpfd, msg.c_str(), msg.size(), 0, 
+//                          (struct sockaddr*)&serverAddr, sizeof(serverAddr));
+        
+//         if (ret == -1) {
+//             cerr << "Heartbeat send error!" << endl;
+//         }
+//     }
+    
+//     close(udpfd);
+// }
+
+
+void heartbeatTask(int clientfd)
+{
+    while(true)
+    {
+        // 1. 休眠 10 秒
+        std::this_thread::sleep_for(std::chrono::seconds(120));
+
+        // 2. 组装 TCP 心跳包
+        json js;
+        js["msgid"] = MsgId::HEARTBEAT_MSG; // HEARTBEAT_MSG
+        js["id"] = g_currentUser.getId(); 
+        string msg = js.dump();
+
+        // 3. 直接通过 TCP 发送
+        // 注意：TCP 是流式协议，如果你的服务器处理了粘包问题（Muduo 默认不处理 JSON 边界）
+        // 你可能需要给 msg 加上长度头，或者简单点发过去就行（依赖 JSON 解析容错）
+        int len = send(clientfd, msg.c_str(), msg.size() + 1, 0);
+        
+        if (len == -1) {
+            // 发送失败，说明 TCP 断了，退出心跳线程
+            break; 
+        }
     }
 }

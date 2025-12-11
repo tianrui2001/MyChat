@@ -63,6 +63,12 @@ public:
     // 处理redis订阅消息
     void handleRedisSubscribeMessage(int userid, string message);
 
+    // // 处理心跳包
+    // void handleHeartbeat(json &js, Timestamp time);
+
+    //检查客户端状态，关闭超时连接
+    void checkClientStatus(Timestamp time);
+
 private:
     ChatService(); // 单例模式
 
