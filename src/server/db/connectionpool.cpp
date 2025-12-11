@@ -6,7 +6,7 @@ static string server = "127.0.0.1";
 static string user = "root";
 static string password = "123456";
 static string dbname = "chat";
-static int initSize = 10;
+static int initSize = 5;
 static int maxSize = 15;
 
 
@@ -53,14 +53,14 @@ MYSQL* ConnectionPool::createConnection() {
     return conn;
 }
 
-// // 获取连接（消费者）
+// 获取连接（消费者）
 MYSQL* ConnectionPool::getConnection() {
     unique_lock<mutex> lock(_queueMutex);
 
     // 情况 1：队列里没连接了
     if (_connQueue.empty()) {
         
-        // 如果当前连接数还没达到最大值，说明还可以新建！
+        // 如果当前连接数还没达到最大值，说明还可以新建
         if (_connectionCnt < _maxSize) { 
             // 应该解锁创建连接，避免阻塞其他线程获取连接
             MYSQL* conn = createConnection();
